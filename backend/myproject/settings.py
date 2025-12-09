@@ -38,24 +38,26 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',
-    "rest_framework",
-    'rest_framework.authtoken',
-    "accounts",
+    "rest_framework",  # <-- added for DRF
+    'rest_framework.authtoken',  # <-- added for token auth
+    "accounts",  # <-- custom user app
     'events',
-    'corsheaders',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
+    'corsheaders',  # <-- added for CORS
+    'rest_framework_simplejwt',  # <-- added for JWT auth
+    'rest_framework_simplejwt.token_blacklist',  # <-- optional, for JWT rotation/blacklist
 ]
 
+# SIMPLE JWT Settings
 SIMPLE_JWT = {
-    "AUTH_HEADER_TYPES": ("Bearer",),
-    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),  # <-- required header type for JWT
+    "BLACKLIST_AFTER_ROTATION": True,  # <-- token blacklist after rotation
 }
 
-AUTH_USER_MODEL = "accounts.User"
+# Custom User model
+AUTH_USER_MODEL = "accounts.User"  # <-- changed from default
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # <-- added for CORS
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -65,15 +67,21 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# changes
+# REST Framework config
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         # Could be one of these:
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # <-- added for JWT
     ],
 }
+
+# Custom authentication backend
+AUTHENTICATION_BACKENDS = [
+    "accounts.backends.EmailBackend",  # <-- added: login by email
+    "django.contrib.auth.backends.ModelBackend",  # fallback
+]
 
 ROOT_URLCONF = 'myproject.urls'
 
@@ -101,7 +109,7 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'ugnayan_db'),
+        'NAME': os.getenv('DB_NAME', 'ugnayan_db'),  # <-- can be set via environment
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'pahinungod123'),
         'HOST': os.getenv('DB_HOST', 'localhost'),  # <-- IMPORTANT
@@ -118,7 +126,8 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',  # min 8 chars
+        'OPTIONS': {'min_length': 8},  # <-- added explicit min length
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -127,7 +136,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -153,12 +161,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # your frontend dev server
+    "http://localhost:5173",  # <-- frontend dev server
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = True  # <-- allow sending cookies
 
-# OTP Sending
+# OTP / Email Sending
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_USE_TLS = True
@@ -166,3 +174,10 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = "armasong@up.edu.ph"     
 EMAIL_HOST_PASSWORD = "ucxcqzycshmgaxqo"    
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+AUTHENTICATION_BACKENDS = [
+    'volunteers.backends.VolunteerEmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+

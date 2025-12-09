@@ -1,4 +1,4 @@
-# volunteers/views.py
+# backend/volunteers/views.py
 
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -9,14 +9,11 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.contrib.auth import login, logout
-from django.contrib.auth import get_user_model
 
 from django.http import JsonResponse
 from django.db import transaction
 import json
 import traceback
-
-User = get_user_model()
 
 from core.models import (
     Volunteer,
@@ -69,18 +66,8 @@ def volunteer_login(request):
 
     volunteer = account.volunteer
 
-    # Ensure Django user exists (for token)
-    user, _ = User.objects.get_or_create(username=email)
-    if not user.password:
-        user.password = make_password(password)
-        user.save()
-
-    # Login user for session compatibility
-    user.backend = "django.contrib.auth.backends.ModelBackend"
-    login(request, user)
-
-    # Get or create token
-    token, _ = Token.objects.get_or_create(user=user)
+    # Use VolunteerAccount directly for token
+    token, _ = Token.objects.get_or_create(user=account)
 
     return JsonResponse({
         "success": True,
@@ -109,7 +96,7 @@ class VolunteerProfileView(APIView):
 
     def get(self, request):
         try:
-            account = VolunteerAccount.objects.get(email=request.user.username)
+            account = request.user  # Token-authenticated user is VolunteerAccount
         except VolunteerAccount.DoesNotExist:
             return Response({"error": "Invalid token"}, status=403)
 
@@ -134,7 +121,7 @@ class VolunteerProfileView(APIView):
             "background": {
                 "occupation": background.occupation if background else None,
                 "org_affiliation": background.org_affiliation if background else None,
-                "hobbies_interests": background.hobbies_interrests if background else None,
+                "hobbies_interests": background.hobbies_interests if background else None,
             },
             "emergency_contact": {
                 "name": emergency.name if emergency else None,
@@ -145,11 +132,7 @@ class VolunteerProfileView(APIView):
         })
 
     def patch(self, request):
-        try:
-            account = VolunteerAccount.objects.get(email=request.user.username)
-        except VolunteerAccount.DoesNotExist:
-            return Response({"error": "Invalid token"}, status=403)
-
+        account = request.user
         volunteer = account.volunteer
         data = request.data
 
@@ -190,11 +173,8 @@ class VolunteerHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        try:
-            account = VolunteerAccount.objects.get(email=request.user.username)
-            volunteer = account.volunteer
-        except VolunteerAccount.DoesNotExist:
-            return Response({"error": "Invalid token"}, status=403)
+        account = request.user
+        volunteer = account.volunteer
 
         queryset = VolunteerEvent.objects.filter(
             volunteer=volunteer
@@ -225,10 +205,7 @@ class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        try:
-            account = VolunteerAccount.objects.get(email=request.user.username)
-        except VolunteerAccount.DoesNotExist:
-            return Response({"error": "Invalid token"}, status=403)
+        account = request.user
 
         current = request.data.get("current_password")
         new = request.data.get("new_password")
