@@ -1,3 +1,5 @@
+# backend/volunteers/urls.py
+
 from django.urls import path
 from .views import (
     volunteer_login,
@@ -5,9 +7,9 @@ from .views import (
     VolunteerProfileView,
     VolunteerHistoryView,
     ChangePasswordView,
-    RegisterVolunteer
+    RegisterVolunteer,
+    VolunteerEventListView,  # <- updated import
 )
-from events.views.volunteer_views import VolunteerEventListView
 
 urlpatterns = [
     # Auth
@@ -23,11 +25,12 @@ urlpatterns = [
     # Volunteering History
     path('history/', VolunteerHistoryView.as_view(), name='volunteer-history'),
 
-    # Add this for frontend "current user" request
+    # Current user info (frontend)
     path('user/', VolunteerProfileView.as_view(), name='volunteer-current-user'),
 
-    # Privacy Settings
+    # Privacy / Password
     path('change-password/', ChangePasswordView.as_view(), name='volunteer-change-password'),
-    
+
+    # Event List
     path('events/', VolunteerEventListView.as_view(), name='volunteer-events'),
 ]
