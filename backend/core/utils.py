@@ -5,16 +5,14 @@ from django.db.models import Sum
 from core.models import VolunteerEvent
 
 def generate_volunteer_identifier():
-    today = datetime.date.today().strftime("%Y%m%d")
+    today = datetime.date.today()
+    today_str = today.strftime("%m%d-%Y")  # MMDD-YYYY
 
-    count_today = Volunteer.objects.filter(
-        date_joined=datetime.date.today()
-    ).count()
+    # Count how many volunteers have registered today
+    count_today = Volunteer.objects.filter(date_joined=today).count()
+    sequential = str(count_today + 1).zfill(4)  # 0001, 0002, etc.
 
-    sequential = str(count_today + 1).zfill(4)
-
-    return f"{today}-{sequential}"
-
+    return f"UNP-{today_str}-{sequential}"
 
 def auto_update_total_hours(volunteer, skip_save=False):
     calculated_total = VolunteerEvent.objects.filter(

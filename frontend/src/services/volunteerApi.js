@@ -123,7 +123,16 @@ export const volunteerAPI = {
   // -----------------------------------------------
   updateProfile: async (data) => {
     try {
-      const response = await api.patch("/volunteers/profile/", data);
+      const payload = {
+        ...data, // basic + contact + address + background + emergency fields
+        student_profile: data.student_profile || {},
+        alumni_profile: data.alumni_profile || {},
+        staff_profile: data.staff_profile || {},
+        faculty_profile: data.faculty_profile || {},
+        retiree_profile: data.retiree_profile || {},
+      };
+
+      const response = await api.patch("/volunteers/profile/", payload);
       return { success: true, data: response.data };
     } catch (error) {
       return {

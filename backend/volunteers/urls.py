@@ -15,7 +15,7 @@ urlpatterns = [
     path('logout/', volunteer_logout, name='volunteer-logout'),
 
     # Registration
-    path('register/', RegisterVolunteer.as_view(), name='volunteer-register'),
+    path("register/", RegisterVolunteer.as_view(), name="volunteer-register"),
 
     # Profile Management
     path('profile/', VolunteerProfileView.as_view(), name='volunteer-profile'),

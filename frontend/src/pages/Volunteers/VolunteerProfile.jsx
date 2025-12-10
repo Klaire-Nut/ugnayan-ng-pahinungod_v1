@@ -18,6 +18,15 @@ export default function VolunteerProfile() {
         const response = await volunteerAPI.getProfile();
         if (!response.success) throw new Error(response.error || "Failed to load profile");
 
+        // Flatten nested objects
+        const flattenedData = {
+          ...response.data.volunteer,       // main volunteer info + nested affiliation profiles
+          ...response.data.contact,         // mobile_number, facebook_link
+          ...response.data.address,         // street_address, province, region
+          ...response.data.background,      // occupation, org_affiliation, hobbies_interests
+          ...response.data.emergency_contact, // name, relationship, contact_number, address
+        };
+
         setUserData(response.data);
         setTempData(response.data);
         setError("");
@@ -36,6 +45,7 @@ export default function VolunteerProfile() {
 
     loadProfile();
   }, []);
+
 
   // SIMPLE version — because ProfileForm already returns correct nested objects
   const handleChange = (key, value) => {
@@ -83,7 +93,7 @@ export default function VolunteerProfile() {
               alt="Profile"
               className="profile-photo"
             />
-            <div className="volunteer-id">ID: {userData.volunteer_id}</div>
+            <div className="volunteer-id">{userData.volunteer?.volunteer_identifier}</div>
           </div>
 
           <div className="profile-right">

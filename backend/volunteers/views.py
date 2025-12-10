@@ -138,62 +138,88 @@ class VolunteerProfileView(APIView):
         background = VolunteerBackground.objects.filter(volunteer=volunteer).first()
         emergency = EmergencyContact.objects.filter(volunteer=volunteer).first()
 
+        # ===== GET AFFILIATION DATA PROPERLY =====
+        aff = volunteer.affiliation_type
+        affiliation_data = {}
+
+        if aff == "STUDENT" and hasattr(volunteer, "studentprofile"):
+            p = volunteer.studentprofile
+            affiliation_data = {
+                "degree_program": p.degree_program,
+                "year_level": p.year_level,
+                "college": p.college,
+                "department": p.department,
+            }
+
+        elif aff == "ALUMNI" and hasattr(volunteer, "alumniprofile"):
+            p = volunteer.alumniprofile
+            affiliation_data = {
+                "constituent_unit": p.constituent_unit,
+                "degree_program": p.degree_program,
+                "year_graduated": p.year_graduated,
+            }
+
+        elif aff == "UP STAFF" and hasattr(volunteer, "staffprofile"):
+            p = volunteer.staffprofile
+            affiliation_data = {
+                "office_department": p.office_department,
+                "designation": p.designation,
+            }
+
+        elif aff == "FACULTY" and hasattr(volunteer, "facultyprofile"):
+            p = volunteer.facultyprofile
+            affiliation_data = {
+                "college": p.college,
+                "department": p.department,
+            }
+
+        elif aff == "RETIREE" and hasattr(volunteer, "retireeprofile"):
+            p = volunteer.retireeprofile
+            affiliation_data = {
+                "designation_while_in_up": p.designation_while_in_up,
+                "office_college_department": p.office_college_department,
+            }
+
         return Response({
-            "volunteer": VolunteerSerializer(volunteer).data,
+            "volunteer": {
+                "volunteer_id": volunteer.volunteer_id,
+                "volunteer_identifier": volunteer.volunteer_identifier,
+                "first_name": volunteer.first_name,
+                "middle_name": volunteer.middle_name,
+                "last_name": volunteer.last_name,
+                "nickname": volunteer.nickname,
+                "sex": volunteer.sex,
+                "birthdate": volunteer.birthdate,
+                "affiliation_type": volunteer.affiliation_type,
+                "email": account.email,
+            },
+
             "contact": {
                 "mobile_number": contact.mobile_number if contact else None,
                 "facebook_link": contact.facebook_link if contact else None,
             },
+
             "address": {
                 "street_address": address.street_address if address else None,
                 "province": address.province if address else None,
                 "region": address.region if address else None,
             },
+
             "background": {
                 "occupation": background.occupation if background else None,
                 "org_affiliation": background.org_affiliation if background else None,
                 "hobbies_interests": getattr(background, "hobbies_interests", None),
             },
+
             "emergency_contact": {
                 "name": emergency.name if emergency else None,
                 "relationship": emergency.relationship if emergency else None,
                 "contact_number": emergency.contact_number if emergency else None,
                 "address": emergency.address if emergency else None,
-            }
+            },
+
+            "affiliation_data": affiliation_data
         })
-
-    def patch(self, request):
-        account, err = self._get_account_or_403(request)
-        if err:
-            return err
-
-        volunteer = account.volunteer
-        data = request.data
-
-        try:
-            with transaction.atomic():
-                for field in ["first_name", "middle_name", "last_name", "nickname", "sex", "birthdate"]:
-                    if field in data:
-                        setattr(volunteer, field, data[field])
-                volunteer.save()
-
-                contact, _ = VolunteerContact.objects.get_or_create(volunteer=volunteer)
-                contact.mobile_number = data.get("mobile_number", contact.mobile_number)
-                contact.facebook_link = data.get("facebook_link", contact.facebook_link)
-                contact.save()
-
-                address, _ = VolunteerAddress.objects.get_or_create(volunteer=volunteer)
-                address.street_address = data.get("street_address", address.street_address)
-                address.province = data.get("province", address.province)
-                address.region = data.get("region", address.region)
-                address.save()
-
-            return Response({"success": True})
-        except Exception as e:
-            # log stack for server
-            print("VolunteerProfileView.patch error:", traceback.format_exc())
-            return Response({"error": str(e)}, status=400)
-
 
 # ================================================================
 #  EVENT HISTORY
@@ -313,7 +339,7 @@ class RegisterVolunteer(APIView):
                     sex=volunteer_data.get("sex", ""),
                     birthdate=volunteer_data.get("birthdate"),
                     affiliation_type=volunteer_data.get("affiliation_type", "").upper(),
-                    volunteer_identifier=generate_volunteer_identifier(),
+                    volunteer_identifier=generate_volunteer_identifier(),  # auto-generate
                 )
 
                 VolunteerAccount.objects.create(volunteer=volunteer, email=email, password=make_password(password))
