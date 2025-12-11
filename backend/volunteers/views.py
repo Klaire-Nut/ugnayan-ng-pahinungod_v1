@@ -3,7 +3,11 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+<<<<<<< Updated upstream
 from rest_framework import status
+=======
+from rest_framework.authentication import TokenAuthentication
+>>>>>>> Stashed changes
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.views.decorators.csrf import csrf_exempt
@@ -13,7 +17,6 @@ from django.contrib.auth import login, logout
 from django.http import JsonResponse
 from django.db import transaction
 import json
-import traceback
 
 from core.models import (
     Volunteer,
@@ -27,18 +30,30 @@ from core.models import (
     AlumniProfile,
     StaffProfile,
     FacultyProfile,
+<<<<<<< Updated upstream
     RetireeProfile
+=======
+    RetireeProfile,
+    ProgramInterest,
+>>>>>>> Stashed changes
 )
 
 from volunteers.serializers import VolunteerSerializer
 from core.utils import generate_volunteer_identifier
 
 from rest_framework.authtoken.models import Token
+<<<<<<< Updated upstream
 from rest_framework.authentication import TokenAuthentication
+=======
+>>>>>>> Stashed changes
 
 
 # ================================================================
+<<<<<<< Updated upstream
 #  🔐 VOLUNTEER LOGIN (TOKEN-BASED)
+=======
+# VOLUNTEER LOGIN (TOKEN-BASED)
+>>>>>>> Stashed changes
 # ================================================================
 @csrf_exempt
 def volunteer_login(request):
@@ -66,8 +81,24 @@ def volunteer_login(request):
 
     volunteer = account.volunteer
 
+<<<<<<< Updated upstream
     # Use VolunteerAccount directly for token
     token, _ = Token.objects.get_or_create(user=account)
+=======
+    # Ensure Django auth user exists (used for TokenAuthentication)
+    user, created = User.objects.get_or_create(email=email)
+    if created or not user.password:
+        user.password = make_password(password)
+
+    if hasattr(user, "is_volunteer"):
+        user.is_volunteer = True
+    user.save()
+
+    user.backend = "django.contrib.auth.backends.ModelBackend"
+    login(request, user)
+
+    token, _ = Token.objects.get_or_create(user=user)
+>>>>>>> Stashed changes
 
     return JsonResponse({
         "success": True,
@@ -76,9 +107,12 @@ def volunteer_login(request):
         "volunteer": VolunteerSerializer(volunteer).data,
     })
 
-
 # ================================================================
+<<<<<<< Updated upstream
 #  🚪 LOGOUT
+=======
+# LOGOUT
+>>>>>>> Stashed changes
 # ================================================================
 @csrf_exempt
 def volunteer_logout(request):
@@ -87,7 +121,11 @@ def volunteer_logout(request):
 
 
 # ================================================================
+<<<<<<< Updated upstream
 #  👤 VOLUNTEER PROFILE VIEW (TOKEN)
+=======
+# VOLUNTEER PROFILE VIEW (TOKEN)
+>>>>>>> Stashed changes
 # ================================================================
 @method_decorator(csrf_exempt, name='dispatch')
 class VolunteerProfileView(APIView):
@@ -102,13 +140,88 @@ class VolunteerProfileView(APIView):
 
         volunteer = account.volunteer
 
-        contact = VolunteerContact.objects.filter(volunteer=volunteer).first()
-        address = VolunteerAddress.objects.filter(volunteer=volunteer).first()
-        background = VolunteerBackground.objects.filter(volunteer=volunteer).first()
-        emergency = EmergencyContact.objects.filter(volunteer=volunteer).first()
+        contact = getattr(volunteer, "contacts", None)
+        contact = contact.first() if contact else None
 
+<<<<<<< Updated upstream
         return Response({
             "volunteer": VolunteerSerializer(volunteer).data,
+=======
+        address = getattr(volunteer, "addresses", None)
+        address = address.first() if address else None
+
+        background = getattr(volunteer, "backgrounds", None)
+        background = background.first() if background else None
+
+        emergency = getattr(volunteer, "emergency_contacts", None)
+        emergency = emergency.first() if emergency else None
+
+        # ===== AFFILIATION DATA =====
+        aff = (volunteer.affiliation_type or "").lower()
+        affiliation_data = []
+
+        if aff == "student" and hasattr(volunteer, "student_profile"):
+            p = getattr(volunteer, "student_profile", None)
+            if p:
+                affiliation_data.append({
+                    "type": "STUDENT",
+                    "degree_program": p.degree_program,
+                    "year_level": p.year_level,
+                    "college": p.college,
+                    "department": p.department,
+                })
+        elif aff == "alumni" and hasattr(volunteer, "alumni_profile"):
+            p = getattr(volunteer, "alumni_profile", None)
+            if p:
+                affiliation_data.append({
+                    "type": "ALUMNI",
+                    "constituent_unit": p.constituent_unit,
+                    "degree_program": p.degree_program,
+                    "year_graduated": p.year_graduated,
+                })
+        elif aff in ("up staff", "staff") and hasattr(volunteer, "staff_profile"):
+            p = getattr(volunteer, "staff_profile", None)
+            if p:
+                affiliation_data.append({
+                    "type": "UP STAFF",
+                    "office_department": p.office_department,
+                    "designation": p.designation,
+                })
+        elif aff == "faculty" and hasattr(volunteer, "faculty_profile"):
+            p = getattr(volunteer, "faculty_profile", None)
+            if p:
+                affiliation_data.append({
+                    "type": "FACULTY",
+                    "college": p.college,
+                    "department": p.department,
+                })
+        elif aff == "retiree" and hasattr(volunteer, "retiree_profile"):
+            p = getattr(volunteer, "retiree_profile", None)
+            if p:
+                affiliation_data.append({
+                    "type": "RETIREE",
+                    "designation_while_in_up": p.designation_while_in_up,
+                    "office_college_department": p.office_college_department,
+                })
+
+        # Program interests
+        program_interests_qs = ProgramInterest.objects.filter(volunteer=volunteer)
+        program_interests = [pi.program_name for pi in program_interests_qs]
+
+        return Response({
+            "volunteer": {
+                "volunteer_id": volunteer.volunteer_id,
+                "volunteer_identifier": getattr(volunteer, "volunteer_identifier", None),
+                "first_name": volunteer.first_name,
+                "middle_name": volunteer.middle_name,
+                "last_name": volunteer.last_name,
+                "nickname": volunteer.nickname,
+                "sex": volunteer.sex,
+                "birthdate": volunteer.birthdate,
+                "affiliation_type": volunteer.affiliation_type,
+                "email": account.email,
+            },
+>>>>>>> Stashed changes
             "contact": {
                 "mobile_number": contact.mobile_number if contact else None,
                 "facebook_link": contact.facebook_link if contact else None,
@@ -128,6 +241,7 @@ class VolunteerProfileView(APIView):
                 "relationship": emergency.relationship if emergency else None,
                 "contact_number": emergency.contact_number if emergency else None,
                 "address": emergency.address if emergency else None,
+<<<<<<< Updated upstream
             }
         })
 
@@ -166,6 +280,16 @@ class VolunteerProfileView(APIView):
 
 # ================================================================
 #  📜 EVENT HISTORY
+=======
+            },
+            "affiliation_data": affiliation_data,
+            "program_interests": program_interests,
+        })
+
+
+# ================================================================
+# EVENT HISTORY
+>>>>>>> Stashed changes
 # ================================================================
 @method_decorator(csrf_exempt, name='dispatch')
 class VolunteerHistoryView(APIView):
@@ -197,7 +321,11 @@ class VolunteerHistoryView(APIView):
 
 
 # ================================================================
+<<<<<<< Updated upstream
 #  🔐 CHANGE PASSWORD
+=======
+# CHANGE PASSWORD
+>>>>>>> Stashed changes
 # ================================================================
 @method_decorator(csrf_exempt, name='dispatch')
 class ChangePasswordView(APIView):
@@ -227,7 +355,11 @@ class ChangePasswordView(APIView):
 
 
 # ================================================================
+<<<<<<< Updated upstream
 #  📝 REGISTER VOLUNTEER
+=======
+# REGISTER VOLUNTEER
+>>>>>>> Stashed changes
 # ================================================================
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterVolunteer(APIView):
@@ -249,6 +381,7 @@ class RegisterVolunteer(APIView):
                 background_data = request.data.get("background", {})
                 emergency_data = request.data.get("emergency_contact", {})
                 affiliation_data = request.data.get("affiliation_data", {})
+                program_interests = request.data.get("program_interests", [])
 
                 email = account_data.get("email", "").strip()
                 password = account_data.get("password", "")
@@ -285,7 +418,11 @@ class RegisterVolunteer(APIView):
                     nickname=volunteer_data.get("nickname", "").strip(),
                     sex=volunteer_data.get("sex", ""),
                     birthdate=volunteer_data.get("birthdate"),
+<<<<<<< Updated upstream
                     affiliation_type=volunteer_data.get("affiliation_type", "").upper(),
+=======
+                    affiliation_type=volunteer_data.get("affiliation_type", "").lower(),
+>>>>>>> Stashed changes
                     volunteer_identifier=generate_volunteer_identifier(),
                 )
 
@@ -332,22 +469,35 @@ class RegisterVolunteer(APIView):
                         address=emergency_data.get("address", "")
                     )
 
+<<<<<<< Updated upstream
                 # Affiliation-specific
                 aff = volunteer.affiliation_type
 
                 if aff == "STUDENT":
+=======
+                # Affiliation profiles
+                aff = volunteer.affiliation_type.lower()
+                if aff == "student":
+>>>>>>> Stashed changes
                     StudentProfile.objects.create(
                         volunteer=volunteer,
                         degree_program=affiliation_data.get("degree_program", ""),
                         year_level=affiliation_data.get("year_level", ""),
                         college=affiliation_data.get("college", ""),
+<<<<<<< Updated upstream
                         department=affiliation_data.get("department", ""),
                     )
                 elif aff == "ALUMNI":
+=======
+                        department=affiliation_data.get("department", "")
+                    )
+                elif aff == "alumni":
+>>>>>>> Stashed changes
                     AlumniProfile.objects.create(
                         volunteer=volunteer,
                         constituent_unit=affiliation_data.get("constituent_unit", ""),
                         degree_program=affiliation_data.get("degree_program", ""),
+<<<<<<< Updated upstream
                         year_graduated=affiliation_data.get("year_graduated", ""),
                     )
                 elif aff == "UP STAFF":
@@ -376,4 +526,35 @@ class RegisterVolunteer(APIView):
 
         except Exception as e:
             print("REGISTER ERROR:", traceback.format_exc())
+=======
+                        year_graduated=affiliation_data.get("year_graduated", "")
+                    )
+                elif aff in ("up staff", "staff"):
+                    StaffProfile.objects.create(
+                        volunteer=volunteer,
+                        office_department=affiliation_data.get("office_department", ""),
+                        designation=affiliation_data.get("designation", "")
+                    )
+                elif aff == "faculty":
+                    FacultyProfile.objects.create(
+                        volunteer=volunteer,
+                        college=affiliation_data.get("college", ""),
+                        department=affiliation_data.get("department", "")
+                    )
+                elif aff == "retiree":
+                    RetireeProfile.objects.create(
+                        volunteer=volunteer,
+                        designation_while_in_up=affiliation_data.get("designation_while_in_up", ""),
+                        office_college_department=affiliation_data.get("office_college_department", "")
+                    )
+
+                # Program interests
+                for name in program_interests:
+                    if name:
+                        ProgramInterest.objects.create(volunteer=volunteer, program_name=name)
+
+                return Response({"message": "Volunteer registered successfully", "volunteer_id": volunteer.volunteer_id})
+
+        except Exception as e:
+>>>>>>> Stashed changes
             return Response({"error": str(e)}, status=500)

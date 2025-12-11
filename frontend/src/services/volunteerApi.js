@@ -1,6 +1,9 @@
 // src/services/volunteerApi.js
 import axios from "axios";
 
+// ------------------------------
+// Base URL
+// ------------------------------
 const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 // ------------------------------------------------------
@@ -8,19 +11,19 @@ const API_BASE_URL = "http://127.0.0.1:8000/api";
 // ------------------------------------------------------
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  withCredentials: true, // CHANGED: keep cookies/session if needed
   headers: { "Content-Type": "application/json" },
 });
 
 // ------------------------------------------------------
-// Automatically attach token
+// Automatically attach token to requests
 // ------------------------------------------------------
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("volunteerToken");
 
     if (token) {
-      config.headers.Authorization = `Token ${token}`;
+      config.headers.Authorization = `Token ${token}`; // CHANGED: use consistent "Token " prefix
     }
 
     console.log("➡️ REQUEST:", config.method.toUpperCase(), config.url);
@@ -39,7 +42,11 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.log("❌ RESPONSE ERROR:", error.response?.status, error.config?.url);
+    console.log(
+      "❌ RESPONSE ERROR:",
+      error.response?.status,
+      error.config?.url
+    );
     console.log("❌ ERROR BODY:", error.response?.data);
     return Promise.reject(error);
   }
@@ -54,9 +61,10 @@ export const volunteerAPI = {
   // -----------------------------------------------
   register: async (data) => {
     try {
-      const response = await api.post("/volunteers/register/", data);
+      const response = await api.post("/volunteers/register/", data); // CHANGED: ensure trailing slash
       return { success: true, data: response.data };
     } catch (error) {
+      console.error("❌ REGISTER ERROR:", error.response?.data); // CHANGED: added console log
       return {
         success: false,
         error: error.response?.data?.error || "Registration failed",
@@ -66,36 +74,50 @@ export const volunteerAPI = {
   },
 
   // -----------------------------------------------
-  // LOGIN (matches backend /volunteer/login/)
+  // LOGIN
   // -----------------------------------------------
-  login: async (email, password) => {
-    try {
-      console.log("🔐 Attempting volunteer login:", email);
+login: async (email, password) => {
+  try {
+    console.log("🔐 Attempting volunteer login:", email);
 
-      const response = await api.post("/volunteers/login/", { email, password });
+    // Ensure you are hitting the correct backend URL
+    // If 'api' has a baseURL of http://127.0.0.1:8000/api, then this is fine
+    const response = await api.post("/volunteers/login/", {
+      email,
+      password,
+    }, {
+      headers: {
+        "Content-Type": "application/json", // Explicitly set
+      },
+    });
 
-      console.log("✅ LOGIN SUCCESS:", response.data);
+    console.log("✅ LOGIN SUCCESS:", response.data);
 
-      if (response.data.token) {
-        localStorage.setItem("volunteerToken", response.data.token);
-      }
-
-      return { success: true, data: response.data };
-    } catch (error) {
-      console.error("❌ LOGIN ERROR:", error.response?.data);
-      return {
-        success: false,
-        error: error.response?.data?.error || "Login failed",
-      };
+    if (response.data.token) {
+      localStorage.setItem("volunteerToken", response.data.token);
     }
-  },
+
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("❌ LOGIN ERROR:", error.response?.data || error.message);
+
+    // Return the exact error from backend if available
+    return {
+      success: false,
+      error:
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Login failed",
+    };
+  }
+},
 
   // -----------------------------------------------
   // LOGOUT
   // -----------------------------------------------
   logout: async () => {
     try {
-      await api.post("/volunteers/logout/");
+      await api.post("/volunteers/logout/"); // CHANGED: ensure trailing slash
       localStorage.removeItem("volunteerToken");
       console.log("🔓 Logged out.");
     } catch (error) {
@@ -108,9 +130,10 @@ export const volunteerAPI = {
   // -----------------------------------------------
   getProfile: async () => {
     try {
-      const response = await api.get("/volunteers/profile/");
+      const response = await api.get("/volunteers/profile/"); // CHANGED: ensure trailing slash
       return { success: true, data: response.data };
     } catch (error) {
+      console.error("❌ GET PROFILE ERROR:", error.response?.data); // CHANGED: added console log
       return {
         success: false,
         error: error.response?.data?.error || "Failed to load profile",
@@ -123,9 +146,23 @@ export const volunteerAPI = {
   // -----------------------------------------------
   updateProfile: async (data) => {
     try {
+<<<<<<< Updated upstream
       const response = await api.patch("/volunteers/profile/", data);
+=======
+      const payload = {
+        ...data,
+        student_profile: data.student_profile || {},
+        alumni_profile: data.alumni_profile || {},
+        staff_profile: data.staff_profile || {},
+        faculty_profile: data.faculty_profile || {},
+        retiree_profile: data.retiree_profile || {},
+      };
+
+      const response = await api.patch("/volunteers/profile/", payload); // CHANGED: ensure trailing slash
+>>>>>>> Stashed changes
       return { success: true, data: response.data };
     } catch (error) {
+      console.error("❌ UPDATE PROFILE ERROR:", error.response?.data); // CHANGED: added console log
       return {
         success: false,
         error: error.response?.data?.error || "Failed to update profile",
@@ -138,9 +175,10 @@ export const volunteerAPI = {
   // -----------------------------------------------
   getHistory: async () => {
     try {
-      const response = await api.get("/volunteers/history/");
+      const response = await api.get("/volunteers/history/"); // CHANGED: ensure trailing slash
       return { success: true, data: response.data };
     } catch (error) {
+      console.error("❌ GET HISTORY ERROR:", error.response?.data); // CHANGED: added console log
       return {
         success: false,
         error: error.response?.data?.error || "Failed to load history",
@@ -153,7 +191,7 @@ export const volunteerAPI = {
   // -----------------------------------------------
   changePassword: async (currentPassword, newPassword, confirmPassword) => {
     try {
-      const response = await api.post("/volunteers/change-password/", {
+      const response = await api.post("/volunteers/change-password/", { // CHANGED: ensure trailing slash
         current_password: currentPassword,
         new_password: newPassword,
         confirm_password: confirmPassword,
@@ -161,6 +199,7 @@ export const volunteerAPI = {
 
       return { success: true, data: response.data };
     } catch (error) {
+      console.error("❌ CHANGE PASSWORD ERROR:", error.response?.data); // CHANGED: added console log
       return {
         success: false,
         error: error.response?.data?.error || "Failed to change password",
