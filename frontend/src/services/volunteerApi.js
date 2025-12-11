@@ -141,34 +141,36 @@ login: async (email, password) => {
     }
   },
 
-  // -----------------------------------------------
-  // UPDATE PROFILE
-  // -----------------------------------------------
-  updateProfile: async (data) => {
-    try {
-<<<<<<< Updated upstream
-      const response = await api.patch("/volunteers/profile/", data);
-=======
-      const payload = {
-        ...data,
-        student_profile: data.student_profile || {},
-        alumni_profile: data.alumni_profile || {},
-        staff_profile: data.staff_profile || {},
-        faculty_profile: data.faculty_profile || {},
-        retiree_profile: data.retiree_profile || {},
-      };
+// -----------------------------------------------
+// UPDATE PROFILE
+// -----------------------------------------------
+updateProfile: async (data) => {
+  try {
+    const payload = {
+      volunteer: data.volunteer || {},
+      contact: data.contact || {},
+      address: data.address || {},
+      background: data.background || {},
+      emergency_contact: data.emergency_contact || {},
+      affiliation_data: Array.isArray(data.affiliation_data) ? data.affiliation_data : [data.affiliation_data || {}],
+      program_interests: Array.isArray(data.program_interests) ? data.program_interests : [],
+      profile_picture: data.profile_picture || ""
+    };
 
-      const response = await api.patch("/volunteers/profile/", payload); // CHANGED: ensure trailing slash
->>>>>>> Stashed changes
-      return { success: true, data: response.data };
-    } catch (error) {
-      console.error("❌ UPDATE PROFILE ERROR:", error.response?.data); // CHANGED: added console log
-      return {
-        success: false,
-        error: error.response?.data?.error || "Failed to update profile",
-      };
-    }
-  },
+    console.log("➡️ Updating profile with payload:", payload);
+
+    const response = await api.patch("/volunteers/profile/", payload); // PATCH updates partial
+
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("❌ UPDATE PROFILE ERROR:", error.response?.data || error);
+    return {
+      success: false,
+      error: error.response?.data?.error || "Failed to update profile",
+    };
+  }
+}
+,
 
   // -----------------------------------------------
   // EVENT HISTORY

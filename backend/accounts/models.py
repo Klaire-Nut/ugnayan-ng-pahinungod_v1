@@ -11,7 +11,7 @@ class UserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         if password:
-            user.set_password(password)  # hashes the password correctly
+            user.set_password(password)
         else:
             raise ValueError("Password must be set")
         user.save(using=self._db)
@@ -28,12 +28,20 @@ class UserManager(BaseUserManager):
         return self._create_user(email, password, **extra_fields)
 
 class User(AbstractUser):
-    username = None  # remove username field
+    username = None
     email = models.EmailField(unique=True)
     is_admin = models.BooleanField(default=False)
     is_volunteer = models.BooleanField(default=False)
+    
+    # ✅ Link User to Volunteer
+    volunteer = models.OneToOneField(
+        "core.Volunteer",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="user"
+    )
 
-    # Password validators: Django will handle max length (128) automatically
     password = models.CharField(
         max_length=128,
         validators=[MinLengthValidator(8)],

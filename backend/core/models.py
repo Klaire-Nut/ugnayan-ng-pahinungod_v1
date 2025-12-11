@@ -82,7 +82,6 @@ class VolunteerAddress(models.Model):
 class VolunteerBackground(models.Model):
     background_id = models.AutoField(primary_key=True)
     volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='backgrounds')
-    occupation = models.CharField(max_length=100, blank=True, null=True)
     org_affiliation = models.CharField(max_length=255, blank=True, null=True)
     hobbies_interests = models.TextField(blank=True, null=True)
 
