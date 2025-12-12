@@ -3,60 +3,90 @@ import React from "react";
 export default function ProfileForm({ data, editable = false, onChange }) {
   if (!data) return null;
 
-  const label = (str) => str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  // Helper to format field labels
+  const label = (str) =>
+    str.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-  const affiliation = Array.isArray(data.affiliation_data) && data.affiliation_data.length
-    ? data.affiliation_data[0]
-    : {};
+  // Affiliation data (take the first object if array)
+  const affiliation =
+    Array.isArray(data.affiliation_data) && data.affiliation_data.length
+      ? data.affiliation_data[0]
+      : {};
 
+  // All possible programs
   const ALL_PROGRAMS = [
     "PROGRAMS UNDER THE UP BARMM-MBHTE MOU",
     "ENVIRONMENTAL AWARENESS PROGRAM",
     "TUTORIAL SERVICES PROGRAM",
     "UGNAYAN NG PAHINUNGOD ONLINE PROGRAM",
     "COMMUNITY SERVICE PROGRAM",
-    "OTHER PROGRAMS"
+    "OTHER PROGRAMS",
   ];
 
+  // Sections & their fields
   const sections = {
-    "Personal Information": ["first_name", "middle_name", "last_name", "nickname", "sex", "birthdate", "email"],
+    "Personal Information": [
+      "first_name",
+      "middle_name",
+      "last_name",
+      "nickname",
+      "sex",
+      "birthdate",
+      "email",
+    ],
     "Contact Information": ["mobile_number", "facebook_link"],
     "Current Address": ["street_address", "province", "region"],
     "Background Information": ["org_affiliation", "hobbies_interests"],
     "Emergency Contact": ["name", "relationship", "contact_number", "address"],
-    "Affiliation Information": affiliation ? Object.keys(affiliation).filter(k => k !== "type") : [],
-    "Program Interests": ALL_PROGRAMS
+    "Affiliation Information": affiliation
+      ? Object.keys(affiliation).filter((k) => k !== "type" && k !== "id" && k !== "volunteer")
+      : [],
+    "Program Interests": ALL_PROGRAMS,
   };
 
+  // Get the value for each field
   const getValue = (section, field) => {
     switch (section) {
-      case "Personal Information": return data.volunteer?.[field] ?? "";
-      case "Contact Information": return data.contact?.[field] ?? "";
-      case "Current Address": return data.address?.[field] ?? "";
-      case "Background Information": return data.background?.[field] ?? "";
-      case "Emergency Contact": return data.emergency_contact?.[field] ?? "";
-      case "Affiliation Information": return affiliation?.[field] ?? "";
-      case "Program Interests": return data.program_interests?.includes(field) ?? false;
-      default: return data[field] ?? "";
+      case "Personal Information":
+        return data.volunteer?.[field] ?? "(Not provided)";
+      case "Contact Information":
+        return data.contacts?.[0]?.[field] ?? "(Not provided)";
+      case "Current Address":
+        return data.addresses?.[0]?.[field] ?? "(Not provided)";
+      case "Background Information":
+        return data.backgrounds?.[0]?.[field] ?? "(Not provided)";
+      case "Emergency Contact":
+        return data.emergency_contacts?.[0]?.[field] ?? "(Not provided)";
+      case "Affiliation Information":
+        return affiliation?.[field] || "(Not provided)";
+      case "Program Interests":
+        return data.program_interests?.includes(field) ?? false;
+      default:
+        return data[field] ?? "(Not provided)";
     }
   };
 
+  // Save value callback
   const saveValue = (section, field, value) => {
     switch (section) {
       case "Personal Information":
         onChange("volunteer", { ...data.volunteer, [field]: value });
         break;
       case "Contact Information":
-        onChange("contact", { ...data.contact, [field]: value });
+        const contact = data.contacts?.[0] || {};
+        onChange("contact", [{ ...contact, [field]: value }]);
         break;
       case "Current Address":
-        onChange("address", { ...data.address, [field]: value });
+        const address = data.addresses?.[0] || {};
+        onChange("address", [{ ...address, [field]: value }]);
         break;
       case "Background Information":
-        onChange("background", { ...data.background, [field]: value });
+        const background = data.backgrounds?.[0] || {};
+        onChange("background", [{ ...background, [field]: value }]);
         break;
       case "Emergency Contact":
-        onChange("emergency_contact", { ...data.emergency_contact, [field]: value });
+        const emergency = data.emergency_contacts?.[0] || {};
+        onChange("emergency_contact", [{ ...emergency, [field]: value }]);
         break;
       case "Affiliation Information":
         onChange("affiliation_data", [{ ...affiliation, [field]: value }]);
@@ -64,7 +94,10 @@ export default function ProfileForm({ data, editable = false, onChange }) {
       case "Program Interests":
         const current = [...(data.program_interests || [])];
         if (current.includes(field)) {
-          onChange("program_interests", current.filter(p => p !== field));
+          onChange(
+            "program_interests",
+            current.filter((p) => p !== field)
+          );
         } else {
           onChange("program_interests", [...current, field]);
         }
@@ -106,15 +139,23 @@ export default function ProfileForm({ data, editable = false, onChange }) {
                       {editable ? (
                         <input
                           type="text"
-                          value={getValue(sectionTitle, field)}
-                          onChange={(e) => saveValue(sectionTitle, field, e.target.value)}
+                          value={getValue(sectionTitle, field) === "(Not provided)" ? "" : getValue(sectionTitle, field)}
+                          onChange={(e) =>
+                            saveValue(sectionTitle, field, e.target.value)
+                          }
                         />
                       ) : (
-                        getValue(sectionTitle, field) !== "" && <div className="value">{getValue(sectionTitle, field)}</div>
+                        <div className="value">{getValue(sectionTitle, field)}</div>
                       )}
                     </div>
                   ))}
             </div>
+            {/* Show placeholder if no Program Interests selected */}
+            {sectionTitle === "Program Interests" &&
+              !data.program_interests?.length &&
+              !editable && (
+                <div className="value">(No program selected)</div>
+              )}
           </div>
         );
       })}

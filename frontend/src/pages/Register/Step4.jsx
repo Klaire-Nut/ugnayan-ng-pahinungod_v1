@@ -33,10 +33,8 @@ export default function Step4({
   const [successDialog, setSuccessDialog] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Input handlers
   const handleChange = useCallback((setter) => (e) => setter(e.target.value), []);
 
-  // Validation
   const validate = useCallback(() => {
     const newErrors = {};
 
@@ -44,7 +42,8 @@ export default function Step4({
     else if (password.length < 8)
       newErrors.password = "Password must be at least 8 characters.";
 
-    if (!confirmPassword) newErrors.confirmPassword = "Please confirm your password.";
+    if (!confirmPassword)
+      newErrors.confirmPassword = "Please confirm your password.";
 
     if (password && confirmPassword && password !== confirmPassword)
       newErrors.confirmPassword = "Passwords do not match.";
@@ -71,7 +70,22 @@ export default function Step4({
     const emptyIfNull = (val) => val || "";
 
     // ------------------------------
-    // Build payload for backend (updated field names)
+    // FIX: Safe date converter for dayjs + native Date + string
+    // ------------------------------
+    const toISODate = (value) => {
+      if (!value) return null;
+
+      if (value?.toDate) {
+        const d = value.toDate();
+        return isNaN(d) ? null : d.toISOString().split("T")[0];
+      }
+
+      const d = new Date(value);
+      return isNaN(d) ? null : d.toISOString().split("T")[0];
+    };
+
+    // ------------------------------
+    // Build payload for backend
     // ------------------------------
     const payload = {
       account: {
@@ -84,9 +98,7 @@ export default function Step4({
         last_name: emptyIfNull(formData.lastName),
         nickname: emptyIfNull(formData.nickname),
         sex: emptyIfNull(formData.sex),
-        birthdate: formData.birthdate
-          ? new Date(formData.birthdate).toISOString().split("T")[0]
-          : null,
+        birthdate: toISODate(formData.birthdate), // <<-- FIX APPLIED
         affiliation_type: (formData.affiliation || "").toLowerCase(),
       },
       contact: {
@@ -99,7 +111,6 @@ export default function Step4({
         region: emptyIfNull(formData.region),
       },
       background: {
-        occupation: emptyIfNull(formData.occupation),
         org_affiliation: emptyIfNull(formData.organizations),
         hobbies_interests: emptyIfNull(formData.hobbies),
       },
@@ -109,14 +120,14 @@ export default function Step4({
         contact_number: emptyIfNull(formData.emerContact),
         address: emptyIfNull(formData.emerAddress),
       },
-      affiliation_data: {}, // will fill below
+      affiliation_data: {},
       program_interests: Array.isArray(formData.program_interests)
         ? formData.program_interests
         : [],
     };
 
     // ------------------------------
-    // Affiliation profiles (unified field names)
+    // Affiliation profiles
     // ------------------------------
     switch ((formData.affiliation || "").toLowerCase()) {
       case "student":
@@ -127,6 +138,7 @@ export default function Step4({
           department: emptyIfNull(formData.department),
         };
         break;
+
       case "alumni":
         payload.affiliation_data = {
           constituent_unit: emptyIfNull(formData.constituentUnit),
@@ -134,6 +146,7 @@ export default function Step4({
           year_graduated: emptyIfNull(formData.yearGraduated),
         };
         break;
+
       case "staff":
       case "up staff":
         payload.affiliation_data = {
@@ -141,18 +154,21 @@ export default function Step4({
           designation: emptyIfNull(formData.designation),
         };
         break;
+
       case "faculty":
         payload.affiliation_data = {
           college: emptyIfNull(formData.facultyCollege),
           department: emptyIfNull(formData.facultyDepartment),
         };
         break;
+
       case "retiree":
         payload.affiliation_data = {
           designation_while_in_up: emptyIfNull(formData.oldDesignation),
           office_college_department: emptyIfNull(formData.oldCollegeDept),
         };
         break;
+
       default:
         payload.affiliation_data = {};
     }
@@ -178,7 +194,6 @@ export default function Step4({
     }
   };
 
-  // After success → close dialog and open login modal
   const handleSuccessClose = () => {
     setSuccessDialog(false);
     onOpenLogin("Volunteer");
@@ -191,8 +206,8 @@ export default function Step4({
       </Typography>
 
       <Typography variant="body2" sx={{ mb: 3, color: "text.secondary" }}>
-        Create a secure password for your account. Your password must be at
-        least 8 characters long.
+        Create a secure password for your account. Password must be at least 8
+        characters long.
       </Typography>
 
       <TextField
@@ -217,7 +232,6 @@ export default function Step4({
         sx={{ mb: 2 }}
       />
 
-      {/* Navigation */}
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
         <Button variant="outlined" onClick={onBack}>
           Back
@@ -236,13 +250,11 @@ export default function Step4({
         </Button>
       </Box>
 
-      {/* Confirm Submit Dialog */}
       <Dialog open={confirmDialog} onClose={() => setConfirmDialog(false)}>
         <DialogTitle>Confirm Submission</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to submit your registration? Please review
-            all information before confirming.
+            Are you sure you want to submit your registration?
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -253,7 +265,6 @@ export default function Step4({
         </DialogActions>
       </Dialog>
 
-      {/* Success Dialog */}
       <Dialog open={successDialog} onClose={handleSuccessClose}>
         <DialogContent sx={{ textAlign: "center", py: 4 }}>
           <CheckCircleIcon sx={{ fontSize: 80, color: "#4CAF50", mb: 2 }} />
@@ -275,15 +286,7 @@ export default function Step4({
               <strong>Email:</strong> pahinungod.upmin@up.edu.ph
             </Typography>
             <Typography>
-              <strong>Facebook:</strong>{" "}
-              <a
-                href="https://www.facebook.com/upmin.pahinungod"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "#1976d2" }}
-              >
-                facebook.com/upmin.pahinungod
-              </a>
+              <strong>Facebook:</strong> facebook.com/upmin.pahinungod
             </Typography>
           </Box>
         </DialogContent>

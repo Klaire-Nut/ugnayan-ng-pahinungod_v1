@@ -92,8 +92,6 @@ export default function Register() {
     emerContact: "",
     emerAddress: "",
 
-    occupation: "",
-
     // ---------------------------
     // Step 3 — program_interests MUST be present so selections persist
     // ---------------------------

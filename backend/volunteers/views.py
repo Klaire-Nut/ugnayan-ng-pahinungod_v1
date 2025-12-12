@@ -3,21 +3,16 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.contrib.auth import login, logout
-from django.contrib.auth import get_user_model
+from django.contrib.auth import login, logout, get_user_model
 
-User = get_user_model()
-
-
-from django.http import JsonResponse
 from django.db import transaction
 import json
+import traceback
 
 from core.models import (
     Volunteer,
@@ -39,7 +34,8 @@ from volunteers.serializers import VolunteerSerializer
 from core.utils import generate_volunteer_identifier
 
 from rest_framework.authtoken.models import Token
-from rest_framework.authentication import TokenAuthentication
+
+User = get_user_model()
 
 
 # ================================================================
@@ -48,26 +44,26 @@ from rest_framework.authentication import TokenAuthentication
 @csrf_exempt
 def volunteer_login(request):
     if request.method != "POST":
-        return JsonResponse({"error": "POST method required"}, status=400)
+        return Response({"error": "POST method required"}, status=400)
 
     try:
         data = json.loads(request.body.decode("utf-8"))
     except Exception:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
+        return Response({"error": "Invalid JSON"}, status=400)
 
     email = data.get("email")
     password = data.get("password")
 
     if not email or not password:
-        return JsonResponse({"error": "Email and password required"}, status=400)
+        return Response({"error": "Email and password required"}, status=400)
 
     try:
         account = VolunteerAccount.objects.select_related("volunteer").get(email=email)
     except VolunteerAccount.DoesNotExist:
-        return JsonResponse({"error": "Invalid email or password"}, status=400)
+        return Response({"error": "Invalid email or password"}, status=400)
 
     if not check_password(password, account.password):
-        return JsonResponse({"error": "Invalid email or password"}, status=400)
+        return Response({"error": "Invalid email or password"}, status=400)
 
     volunteer = account.volunteer
 
@@ -75,7 +71,6 @@ def volunteer_login(request):
     user, created = User.objects.get_or_create(email=email)
     if created or not user.password:
         user.password = make_password(password)
-
     if hasattr(user, "is_volunteer"):
         user.is_volunteer = True
     user.save()
@@ -85,12 +80,16 @@ def volunteer_login(request):
 
     token, _ = Token.objects.get_or_create(user=user)
 
-    return JsonResponse({
+    # Use serializer to return full profile
+    serializer = VolunteerSerializer(volunteer)
+
+    return Response({
         "success": True,
         "message": "Login successful",
         "token": token.key,
-        "volunteer": VolunteerSerializer(volunteer).data,
+        "volunteer": serializer.data,
     })
+
 
 # ================================================================
 # LOGOUT
@@ -98,19 +97,19 @@ def volunteer_login(request):
 @csrf_exempt
 def volunteer_logout(request):
     logout(request)
-    return JsonResponse({"message": "Logout successful"})
+    return Response({"message": "Logout successful"})
 
 
 # ================================================================
-# VOLUNTEER PROFILE VIEW (TOKEN) - SAFE VERSION
+# VOLUNTEER PROFILE VIEW (TOKEN)
 # ================================================================
+# backend/volunteers/views.py
 @method_decorator(csrf_exempt, name='dispatch')
 class VolunteerProfileView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Option 2: get VolunteerAccount using request.user.email
         try:
             account = VolunteerAccount.objects.get(email=request.user.email)
         except VolunteerAccount.DoesNotExist:
@@ -118,138 +117,31 @@ class VolunteerProfileView(APIView):
 
         volunteer = account.volunteer
 
-        # Safe related objects
-        contact = volunteer.contacts.first() if hasattr(volunteer, "contacts") else None
-        address = volunteer.addresses.first() if hasattr(volunteer, "addresses") else None
-        background = volunteer.backgrounds.first() if hasattr(volunteer, "backgrounds") else None
-        emergency = volunteer.emergency_contacts.first() if hasattr(volunteer, "emergency_contacts") else None
-
-        # Affiliation
-        aff = (volunteer.affiliation_type or "").lower()
-        affiliation_data = []
-
-        if aff == "student":
-            p = getattr(volunteer, "student_profile", None)
-            if p:
-                affiliation_data.append({
-                    "type": "STUDENT",
-                    "degree_program": getattr(p, "degree_program", None),
-                    "year_level": getattr(p, "year_level", None),
-                    "college": getattr(p, "college", None),
-                    "department": getattr(p, "department", None),
-                })
-        elif aff == "alumni":
-            p = getattr(volunteer, "alumni_profile", None)
-            if p:
-                affiliation_data.append({
-                    "type": "ALUMNI",
-                    "constituent_unit": getattr(p, "constituent_unit", None),
-                    "degree_program": getattr(p, "degree_program", None),
-                    "year_graduated": getattr(p, "year_graduated", None),
-                })
-        elif aff in ("up staff", "staff"):
-            p = getattr(volunteer, "staff_profile", None)
-            if p:
-                affiliation_data.append({
-                    "type": "UP STAFF",
-                    "office_department": getattr(p, "office_department", None),
-                    "designation": getattr(p, "designation", None),
-                })
-        elif aff == "faculty":
-            p = getattr(volunteer, "faculty_profile", None)
-            if p:
-                affiliation_data.append({
-                    "type": "FACULTY",
-                    "college": getattr(p, "college", None),
-                    "department": getattr(p, "department", None),
-                })
-        elif aff == "retiree":
-            p = getattr(volunteer, "retiree_profile", None)
-            if p:
-                affiliation_data.append({
-                    "type": "RETIREE",
-                    "designation_while_in_up": getattr(p, "designation_while_in_up", None),
-                    "office_college_department": getattr(p, "office_college_department", None),
-                })
-
-        # Program interests
-        program_interests_qs = ProgramInterest.objects.filter(volunteer=volunteer)
-        program_interests = [pi.program_name for pi in program_interests_qs]
-
-        return Response({
-            "volunteer": {
-                "volunteer_id": getattr(volunteer, "volunteer_id", None),
-                "volunteer_identifier": getattr(volunteer, "volunteer_identifier", None),
-                "first_name": getattr(volunteer, "first_name", None),
-                "middle_name": getattr(volunteer, "middle_name", None),
-                "last_name": getattr(volunteer, "last_name", None),
-                "nickname": getattr(volunteer, "nickname", None),
-                "sex": getattr(volunteer, "sex", None),
-                "birthdate": getattr(volunteer, "birthdate", None),
-                "affiliation_type": getattr(volunteer, "affiliation_type", None),
-                "email": getattr(account, "email", None),
-            },
-            "contact": {
-                "mobile_number": getattr(contact, "mobile_number", None),
-                "facebook_link": getattr(contact, "facebook_link", None),
-            },
-            "address": {
-                "street_address": getattr(address, "street_address", None),
-                "province": getattr(address, "province", None),
-                "region": getattr(address, "region", None),
-            },
-            "background": {
-                "occupation": getattr(background, "occupation", None),
-                "org_affiliation": getattr(background, "org_affiliation", None),
-                "hobbies_interests": getattr(background, "hobbies_interests", None),
-            },
-            "emergency_contact": {
-                "name": getattr(emergency, "name", None),
-                "relationship": getattr(emergency, "relationship", None),
-                "contact_number": getattr(emergency, "contact_number", None),
-                "address": getattr(emergency, "address", None),
-            },
-            "affiliation_data": affiliation_data,
-            "program_interests": program_interests,
-        })
+        # ✅ Use serializer to return full nested data
+        serializer = VolunteerSerializer(volunteer)
+        return Response(serializer.data, status=200)
 
     def patch(self, request):
         try:
             account = VolunteerAccount.objects.get(email=request.user.email)
+            volunteer = account.volunteer
         except VolunteerAccount.DoesNotExist:
             return Response({"error": "Volunteer profile not found."}, status=404)
 
-        volunteer = account.volunteer
-        data = request.data
+        serializer = VolunteerSerializer(
+            volunteer,
+            data=request.data,
+            partial=True
+        )
 
-        try:
-            with transaction.atomic():
-                # Basic info
-                for field in ["first_name", "middle_name", "last_name", "nickname", "sex", "birthdate"]:
-                    if field in data:
-                        setattr(volunteer, field, data[field])
-                volunteer.save()
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
 
-                # Contact info
-                contact, _ = VolunteerContact.objects.get_or_create(volunteer=volunteer)
-                contact.mobile_number = data.get("mobile_number", getattr(contact, "mobile_number", None))
-                contact.facebook_link = data.get("facebook_link", getattr(contact, "facebook_link", None))
-                contact.save()
-
-                # Address info
-                address, _ = VolunteerAddress.objects.get_or_create(volunteer=volunteer)
-                address.street_address = data.get("street_address", getattr(address, "street_address", None))
-                address.province = data.get("province", getattr(address, "province", None))
-                address.region = data.get("region", getattr(address, "region", None))
-                address.save()
-
-            return Response({"success": True})
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+        return Response(serializer.errors, status=400)
 
 # ================================================================
-#  📜 EVENT HISTORY
+# VOLUNTEER HISTORY
 # ================================================================
 @method_decorator(csrf_exempt, name='dispatch')
 class VolunteerHistoryView(APIView):
@@ -402,7 +294,6 @@ class RegisterVolunteer(APIView):
                 if background_data:
                     VolunteerBackground.objects.create(
                         volunteer=volunteer,
-                        occupation=background_data.get("occupation", ""),
                         org_affiliation=background_data.get("org_affiliation", ""),
                         hobbies_interests=background_data.get("hobbies_interests", "")
                     )
@@ -426,7 +317,6 @@ class RegisterVolunteer(APIView):
                         degree_program=affiliation_data.get("degree_program", ""),
                         year_level=affiliation_data.get("year_level", ""),
                         college=affiliation_data.get("college", ""),
-
                     )
                 elif aff == "ALUMNI":
                     AlumniProfile.objects.create(

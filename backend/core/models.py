@@ -28,7 +28,7 @@ class Volunteer(models.Model):
 
     volunteer_id = models.AutoField(primary_key=True)
     volunteer_identifier = models.CharField(
-        max_length=20,  # increased to avoid previous 10-char error
+        max_length=20,
         unique=True,
         blank=True,
         null=True
@@ -106,13 +106,14 @@ class VolunteerAccount(models.Model):
         return check_password(raw_password, self.password)
 
 
-# core/models.py
+# Program Interests
 class ProgramInterest(models.Model):
     volunteer = models.ForeignKey(Volunteer, on_delete=models.CASCADE, related_name='program_interests')
     program_name = models.CharField(max_length=100)
 
     def __str__(self):
         return self.program_name
+
 
 # Models Per Affiliation
 class StudentProfile(models.Model):
@@ -145,6 +146,20 @@ class RetireeProfile(models.Model):
     volunteer = models.OneToOneField(Volunteer, on_delete=models.CASCADE, related_name='retiree_profile')
     designation_while_in_up = models.CharField(max_length=100)
     office_college_department = models.CharField(max_length=255)
+
+
+# Volunteer Meta (NEW FIX)
+class VolunteerMeta(models.Model):
+    volunteer = models.OneToOneField(Volunteer, on_delete=models.CASCADE, related_name='meta')
+    volunteer_status = models.CharField(max_length=50, blank=True, null=True)
+    tagapag_ugnay = models.CharField(max_length=100, blank=True, null=True)
+    other_organization = models.CharField(max_length=100, blank=True, null=True)
+    organization_name = models.CharField(max_length=100, blank=True, null=True)
+    affirmative_action_subjects = models.TextField(blank=True, null=True)
+    how_did_you_hear = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Meta for {self.volunteer}"
 
 
 # Events
@@ -199,21 +214,3 @@ class VolunteerScheduleSelection(models.Model):
 
     def __str__(self):
         return f"{self.volunteer} -> {self.schedule}"
-
-# Volunteer Meta for Step 3 / additional preferences
-class VolunteerMeta(models.Model):
-    volunteer = models.OneToOneField(Volunteer, on_delete=models.CASCADE, related_name="meta")
-
-    volunteer_status = models.CharField(max_length=255, null=True, blank=True)
-    tagapag_ugnay = models.CharField(max_length=10, null=True, blank=True)  # YES/NO
-    other_organization = models.CharField(max_length=10, null=True, blank=True)  # YES/NO
-    organization_name = models.CharField(max_length=255, null=True, blank=True)
-
-    affirmative_action_subjects = models.JSONField(default=list)  # array
-    how_did_you_hear = models.TextField(null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Meta for {self.volunteer}"

@@ -17,23 +17,41 @@ export default function VolunteerProfile() {
       try {
         const response = await volunteerAPI.getProfile();
         if (!response.success) throw new Error(response.error || "Failed to load profile");
-        setUserData(response.data);
-        setTempData(response.data);
+
+        // Transform arrays into singular objects for easier form handling
+        const transformed = {
+          volunteer: response.data,
+          contact: response.data.contacts?.[0] || {},
+          address: response.data.addresses?.[0] || {},
+          background: response.data.backgrounds?.[0] || {},
+          emergency_contact: response.data.emergency_contacts?.[0] || {},
+          affiliation_data: response.data.affiliation_data || [],
+          program_interests: response.data.program_interests || [],
+        };
+
+        setUserData(transformed);
+        setTempData(transformed);
         setError("");
       } catch (err) {
         console.error("Profile fetch error:", err);
-        setError(err.message || "Failed to load profile");
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          setError("Session expired. Redirecting to login...");
+          setTimeout(() => (window.location.href = "/login"), 2000);
+        } else {
+          setError(err.message);
+        }
       } finally {
         setLoading(false);
       }
     };
+
     loadProfile();
   }, []);
 
-  const handleChange = (key, value) => {
+  const handleChange = (section, value) => {
     setTempData(prev => ({
       ...prev,
-      [key]: value
+      [section]: value
     }));
   };
 
@@ -64,17 +82,24 @@ export default function VolunteerProfile() {
       <div className="vol-profile-main">
         <div className="profile-header">
           <h1 className="profile-title">PROFILE</h1>
-          <button className="edit-btn" onClick={() => setIsEditOpen(true)}>Edit</button>
+          {!isEditOpen && (
+            <button className="edit-btn" onClick={() => setIsEditOpen(true)}>Edit</button>
+          )}
         </div>
 
         <div className="profile-grid">
           <div className="profile-left">
             <img
-              src={userData.profile_picture || "/default-profile.png"}
+              src={userData.volunteer.profile_picture || "/default-profile.png"}
               alt="Profile"
               className="profile-photo"
             />
-            <div className="volunteer-id">{userData.volunteer?.volunteer_identifier}</div>
+            <div className="volunteer-id">
+              ID: {userData.volunteer.volunteer_identifier}
+            </div>
+            <div className="volunteer-affiliation">
+              {userData.volunteer.affiliation_type || "No affiliation"}
+            </div>
           </div>
 
           <div className="profile-right">
@@ -101,9 +126,7 @@ export default function VolunteerProfile() {
               </div>
 
               <div className="modal-buttons">
-                <button className="cancel-btn" onClick={() => setTempData(userData) || setIsEditOpen(false)}>
-                  Cancel
-                </button>
+                <button className="cancel-btn" onClick={() => setIsEditOpen(false)}>Cancel</button>
                 <button className="save-btn" onClick={handleSave}>Save</button>
               </div>
             </div>

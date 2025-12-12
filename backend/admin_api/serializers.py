@@ -59,7 +59,7 @@ class VolunteerAddressSerializer(serializers.ModelSerializer):
 class VolunteerBackgroundSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerBackground
-        fields = "__all__"
+        fields = ["org_affiliation", "hobbies_interests"]  # match your model
 
 class EmergencyContactSerializer(serializers.ModelSerializer):
     class Meta:
